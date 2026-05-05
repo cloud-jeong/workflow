@@ -1,0 +1,439 @@
+app:
+  description: NL → Agent Orchestrator 자동 생성 워크플로우
+  icon: "\U0001F916"
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: YMS Auto Workflow
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: edge_1
+      source: start
+      sourceHandle: source
+      target: node_1_data_collector
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: tool
+      id: edge_2
+      source: node_1_data_collector
+      sourceHandle: source
+      target: node_2_spc_analyzer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: tool
+      id: edge_3
+      source: node_1_data_collector
+      sourceHandle: source
+      target: node_3_anomaly_detector
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: tool
+      id: edge_4
+      source: node_2_spc_analyzer
+      sourceHandle: source
+      target: node_4_alert_agent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: tool
+      id: edge_5
+      source: node_3_anomaly_detector
+      sourceHandle: source
+      target: node_4_alert_agent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: tool
+      id: edge_6
+      source: node_2_spc_analyzer
+      sourceHandle: source
+      target: node_5_report_agent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: tool
+      id: edge_7
+      source: node_3_anomaly_detector
+      sourceHandle: source
+      target: node_5_report_agent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: end
+      id: edge_8
+      source: node_4_alert_agent
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: end
+      id: edge_9
+      source: node_5_report_agent
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: Start
+        type: start
+        variables:
+        - label: "사용자 요청"
+          required: true
+          type: text-input
+          variable: user_query
+        - label: LOT ID
+          required: false
+          type: text-input
+          variable: lot_id
+      height: 98
+      id: start
+      position:
+        x: 80
+        y: 200
+      positionAbsolute:
+        x: 80
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: "LOT-2024-0812의 어제 SPC 데이터를 데\
+          이터베이스에서 조회"
+        outputs:
+          data:
+            type: object
+          result:
+            type: string
+          status:
+            type: string
+        provider_id: data_collector
+        provider_type: api
+        selected: false
+        title: DataCollector Agent
+        tool_configurations:
+          endpoint: http://agent-svc:8001
+          timeout: 30
+        tool_label: DataCollector Agent
+        tool_name: mcp_query_db
+        tool_parameters:
+          input:
+            type: ref
+            value: '{{#start.user_query#}}'
+          lot_id:
+            type: ref
+            value: '{{#start.lot_id#}}'
+          tools:
+          - mcp_query_db
+        type: tool
+      height: 98
+      id: node_1_data_collector
+      position:
+        x: 320
+        y: 200
+      positionAbsolute:
+        x: 320
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: "조회된 데이터로 SPC 분석 및\
+          \ OOC(Out of Control) 탐지 수행"
+        outputs:
+          data:
+            type: object
+          result:
+            type: string
+          status:
+            type: string
+        provider_id: spc_analyzer
+        provider_type: api
+        selected: false
+        title: SPC Analyzer Agent
+        tool_configurations:
+          endpoint: http://agent-svc:8002
+          timeout: 30
+        tool_label: SPC Analyzer Agent
+        tool_name: mcp_run_spc
+        tool_parameters:
+          input:
+            type: ref
+            value: '{{#start.user_query#}}'
+          lot_id:
+            type: ref
+            value: '{{#start.lot_id#}}'
+          tools:
+          - mcp_run_spc
+          - mcp_detect_ooc
+        type: tool
+      height: 98
+      id: node_2_spc_analyzer
+      position:
+        x: 560
+        y: 100
+      positionAbsolute:
+        x: 560
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: "ML 기반 이상 공정 탐지 및 드\
+          리프트 감지"
+        outputs:
+          data:
+            type: object
+          result:
+            type: string
+          status:
+            type: string
+        provider_id: anomaly_detector
+        provider_type: api
+        selected: false
+        title: Anomaly Detector Agent
+        tool_configurations:
+          endpoint: http://agent-svc:8004
+          timeout: 30
+        tool_label: Anomaly Detector Agent
+        tool_name: mcp_ml_predict
+        tool_parameters:
+          input:
+            type: ref
+            value: '{{#start.user_query#}}'
+          lot_id:
+            type: ref
+            value: '{{#start.lot_id#}}'
+          tools:
+          - mcp_ml_predict
+          - mcp_detect_drift
+        type: tool
+      height: 98
+      id: node_3_anomaly_detector
+      position:
+        x: 560
+        y: 300
+      positionAbsolute:
+        x: 560
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: "이상 공정 감지 시 슬랙 채\
+          널에 알림 전송"
+        outputs:
+          data:
+            type: object
+          result:
+            type: string
+          status:
+            type: string
+        provider_id: alert_agent
+        provider_type: api
+        selected: false
+        title: Alert Agent
+        tool_configurations:
+          endpoint: http://agent-svc:8006
+          timeout: 30
+        tool_label: Alert Agent
+        tool_name: mcp_notify_slack
+        tool_parameters:
+          input:
+            type: ref
+            value: '{{#start.user_query#}}'
+          lot_id:
+            type: ref
+            value: '{{#start.lot_id#}}'
+          tools:
+          - mcp_notify_slack
+        type: tool
+      height: 98
+      id: node_4_alert_agent
+      position:
+        x: 800
+        y: 100
+      positionAbsolute:
+        x: 800
+        y: 100
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: "이상 공정 감지 시 분석 결\
+          과 PDF 리포트 생성"
+        outputs:
+          data:
+            type: object
+          result:
+            type: string
+          status:
+            type: string
+        provider_id: report_agent
+        provider_type: api
+        selected: false
+        title: Report Agent
+        tool_configurations:
+          endpoint: http://agent-svc:8005
+          timeout: 30
+        tool_label: Report Agent
+        tool_name: mcp_gen_report
+        tool_parameters:
+          input:
+            type: ref
+            value: '{{#start.user_query#}}'
+          lot_id:
+            type: ref
+            value: '{{#start.lot_id#}}'
+          tools:
+          - mcp_gen_report
+          - mcp_export_pdf
+        type: tool
+      height: 98
+      id: node_5_report_agent
+      position:
+        x: 800
+        y: 300
+      positionAbsolute:
+        x: 800
+        y: 300
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        outputs:
+        - value_selector:
+          - node_4_alert_agent
+          - result
+          value_type: string
+          variable: result
+        selected: false
+        title: End
+        type: end
+      height: 98
+      id: end
+      position:
+        x: 1040
+        y: 200
+      positionAbsolute:
+        x: 1040
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1.0
+  rag_pipeline_variables: []
