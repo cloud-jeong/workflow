@@ -58,11 +58,14 @@ class WorkflowDSLGenerator:
             "type": "end",
             "outputs": [],
         },
-        "tool": {
-            "type": "tool",
-            "provider_type": "api",
-            "tool_configurations": {},
-            "tool_parameters": {},
+        "http-request": {
+            "type": "http-request",
+            "method": "POST",
+            "authorization": {"type": "no-auth"},
+            "headers": "Content-Type: application/json",
+            "params": "",
+            "body": {"type": "json", "data": "{}"},
+            "timeout": {"max_connect_timeout": 10, "max_read_timeout": 30, "max_write_timeout": 10},
         },
         "if-else": {
             "type": "if-else",
@@ -95,7 +98,7 @@ class WorkflowDSLGenerator:
 
             node = DifyNode(
                 id=node_id,
-                type="tool",
+                type="http-request",
                 title=agent_info.get("name", step.agent_id),
                 agent_id=step.agent_id,
                 tools=step.tools,
@@ -128,7 +131,7 @@ class WorkflowDSLGenerator:
                 "type": "end",
                 "outputs": [{
                     "variable": "result",
-                    "value_selector": [last_node_id, "result"],
+                    "value_selector": [last_node_id, "body"],
                     "value_type": "string",
                 }],
             },
@@ -141,27 +144,30 @@ class WorkflowDSLGenerator:
         return DifyWorkflowDSL(nodes=nodes, edges=edges)
 
     def _build_node_data(self, step: PlanStep, agent_info: dict) -> dict:
+        import json
+        endpoint = agent_info.get("endpoint", "")
+        body_payload = {
+            "input": "{{#start.user_query#}}",
+            "lot_id": "{{#start.lot_id#}}",
+            "tools": step.tools,
+        }
         return {
-            "type": "tool",
+            "type": "http-request",
             "title": agent_info.get("name", step.agent_id),
             "desc": step.action,
-            "provider_type": "api",
-            "provider_id": step.agent_id,
-            "tool_name": step.tools[0] if step.tools else "mcp_call",
-            "tool_label": agent_info.get("name", step.agent_id),
-            "tool_configurations": {
-                "endpoint": agent_info.get("endpoint", ""),
-                "timeout": 30,
+            "method": "POST",
+            "url": f"{endpoint}/invoke",
+            "authorization": {"type": "no-auth"},
+            "headers": "Content-Type: application/json",
+            "params": "",
+            "body": {
+                "type": "json",
+                "data": json.dumps(body_payload, ensure_ascii=False),
             },
-            "tool_parameters": {
-                "input": {"type": "ref", "value": "{{#start.user_query#}}"},
-                "lot_id": {"type": "ref", "value": "{{#start.lot_id#}}"},
-                "tools": step.tools,
-            },
-            "outputs": {
-                "result": {"type": "string"},
-                "status": {"type": "string"},
-                "data": {"type": "object"},
+            "timeout": {
+                "max_connect_timeout": 10,
+                "max_read_timeout": 30,
+                "max_write_timeout": 10,
             },
         }
 

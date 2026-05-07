@@ -85,16 +85,16 @@ class WorkflowOrchestrator:
     def _execute(self, query: str, dsl: DifyWorkflowDSL, payload: dict) -> dict:
         console.log("[bold cyan]Stage 3[/] Dify 실행 전략 결정 중...")
 
-        if os.getenv("DIFY_CONSOLE_TOKEN"):
-            console.log("→ 전략 1: Console API로 신규 앱 생성")
-            app = self.dify.import_app_from_dsl(payload)
-            app_id = app["id"]
-            self.dify.publish_workflow(app_id)
-            console.log(f"[green]✓[/] 배포 완료 — app_id: {app_id}")
+        # if os.getenv("DIFY_CONSOLE_TOKEN"):
+        console.log("→ 전략 1: Console API로 신규 앱 생성")
+        app = self.dify.import_app_from_dsl(payload)
+        app_id = app["id"]
+        self.dify.publish_workflow(app_id)
+        console.log(f"[green]✓[/] 배포 완료 — app_id: {app_id}")
 
-        console.log("→ 전략 2: 기존 배포 앱 실행")
-        inputs = {"user_query": query, "lot_id": ""}
-        return self.dify.run_workflow(inputs=inputs)
+        # console.log("→ 전략 2: 기존 배포 앱 실행")
+        # inputs = {"user_query": query, "lot_id": ""}
+        # return self.dify.run_workflow(inputs=inputs)
 
     def _print_plan(self, plan: OrchestrationPlan):
         console.print(Panel(plan.reasoning, title="[cyan]Planner 추론[/]", border_style="cyan"))
