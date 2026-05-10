@@ -123,11 +123,11 @@ class WorkflowDSLGenerator:
             step_to_branch[step.step] = seen_branches[branch_key]
 
         # Find last layer to wire end node output
-        if plan.steps:
+        if plan.steps:  # steps가 있는 경우에만 layer 계산, 없는 경우 start → end 직결이므로 layer 0
             max_step_layer = max(self._calc_layer(s, plan.steps) for s in plan.steps)
             last_steps = [s for s in plan.steps if self._calc_layer(s, plan.steps) == max_step_layer]
             last_node_id = step_to_node_id[last_steps[0].step]
-        else:
+        else:   # steps가 없는 경우 start → end 직결이므로 layer 0, last_node_id는 start로 설정
             max_step_layer = 0
             last_node_id = "start"
 
@@ -202,10 +202,18 @@ class WorkflowDSLGenerator:
             },
         )
 
+    # 재귀적으로 layer 계산: 의존하는 step이 없으면 1, 있으면 최대 의존 layer + 1
+    # step.step이 layer 역할을 하므로, step.step + 1로 layer 계산 (step.step은 1부터 시작한다고 가정)
+    # 의존하는 step이 여러 개면 최대 layer + 1
+    # 예시: step 1, 2는 의존 없음 → layer 1; 
+    # step 3은 step 1, 2 의존 → layer 2; 
+    # step 4는 step 3 의존 → layer 3
+    # step.step이 layer 역할을 하므로, step.step + 1로 layer 계산 (step.step은 1부터 시작한다고 가정)
+    #   
     def _calc_layer(self, step: PlanStep, all_steps: list[PlanStep]) -> int:
-        if not step.depends_on:
+        if not step.depends_on: # 
             return 1
-        max_dep_layer = max(
+        max_dep_layer = max(    
             self._calc_layer(s, all_steps)
             for s in all_steps
             if s.step in step.depends_on
@@ -291,7 +299,7 @@ class WorkflowDSLGenerator:
             "app": {
                 "description": "NL → Agent Orchestrator 자동 생성 워크플로우",
                 "icon": "🤖",
-                "icon_background": "#FFEAD5",
+                "icon_background": "#FFEAD5", 
                 "icon_type": "emoji",
                 "mode": "workflow",
                 "name": name,
@@ -305,7 +313,7 @@ class WorkflowDSLGenerator:
                 "environment_variables": [],
                 "features": _FEATURES_DEFAULT,
                 "graph": {
-                    "edges": dsl.edges,
+                    "edges": dsl.edges, 
                     "nodes": [self._node_to_dict(n) for n in dsl.nodes],
                     "viewport": {"x": 0, "y": 0, "zoom": 1},
                 },
@@ -313,11 +321,12 @@ class WorkflowDSLGenerator:
             },
         }
 
+    # node의 x좌표 계산을 위해 layer를 고려하여 노드 정보를 딕셔너리로 변환
     def _node_to_dict(self, node: DifyNode) -> dict:
-        x = node.layer * 240 + 80
+        x = node.layer * 280 + 80
         y = 200
         # title and selected belong inside data per Dify's export format
-        data = {**node.data, "title": node.title, "selected": False}
+        data = {"title": node.title, "selected": False, **node.data}
         return {
             "data": data,
             "height": 98,

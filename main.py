@@ -141,7 +141,7 @@ if __name__ == "__main__":
         user_query=query,
         execute=False,
         export_yaml=True,
-        export_json=True,
+        export_json=False,
     )
 
     # 이미 배포된 워크플로우 직접 실행
