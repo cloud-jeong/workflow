@@ -89,23 +89,23 @@ workflow:
         isInIteration: false
         isInLoop: false
         sourceType: http-request
-        targetType: if-else
+        targetType: http-request
       id: edge_3
       source: node_2_spc_analyzer
       sourceHandle: source
-      target: branch_ooc
+      target: node_3_anomaly_detector
       targetHandle: target
       type: custom
       zIndex: 0
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: if-else
-        targetType: http-request
+        sourceType: http-request
+        targetType: if-else
       id: edge_4
-      source: branch_ooc
-      sourceHandle: 'true'
-      target: node_3_alert_agent
+      source: node_3_anomaly_detector
+      sourceHandle: source
+      target: branch_4
       targetHandle: target
       type: custom
       zIndex: 0
@@ -115,9 +115,21 @@ workflow:
         sourceType: if-else
         targetType: http-request
       id: edge_5
-      source: branch_ooc
+      source: branch_4
       sourceHandle: 'true'
-      target: node_4_report_agent
+      target: node_4_alert_agent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: edge_6
+      source: branch_4
+      sourceHandle: 'true'
+      target: node_5_report_agent
       targetHandle: target
       type: custom
       zIndex: 0
@@ -126,8 +138,8 @@ workflow:
         isInLoop: false
         sourceType: if-else
         targetType: end
-      id: edge_6
-      source: branch_ooc
+      id: edge_7
+      source: branch_4
       sourceHandle: 'false'
       target: end
       targetHandle: target
@@ -138,8 +150,8 @@ workflow:
         isInLoop: false
         sourceType: http-request
         targetType: end
-      id: edge_7
-      source: node_3_alert_agent
+      id: edge_8
+      source: node_4_alert_agent
       sourceHandle: source
       target: end
       targetHandle: target
@@ -150,8 +162,8 @@ workflow:
         isInLoop: false
         sourceType: http-request
         targetType: end
-      id: edge_8
-      source: node_4_report_agent
+      id: edge_9
+      source: node_5_report_agent
       sourceHandle: source
       target: end
       targetHandle: target
@@ -171,7 +183,7 @@ workflow:
           required: false
         title: Start
         selected: false
-      height: 135
+      height: 98
       id: start
       position:
         x: 80
@@ -183,11 +195,11 @@ workflow:
       sourcePosition: right
       targetPosition: left
       type: custom
-      width: 242
+      width: 244
     - data:
         type: http-request
         title: DataCollector Agent
-        desc: LOT-2024-0812의 SPC 관련 데이터를 DB에서 조회
+        desc: LOT-2024-0812의 어제 SPC 데이터를 DB에서 조회
         method: POST
         url: http://agent-svc:8001/invoke
         authorization:
@@ -196,13 +208,14 @@ workflow:
         params: ''
         body:
           type: json
-          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}", "tools": ["mcp_query_db"]}'
+          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
+            "tools": ["mcp_query_db"]}'
         timeout:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
         selected: false
-      height: 158
+      height: 98
       id: node_1_data_collector
       position:
         x: 320
@@ -214,11 +227,11 @@ workflow:
       sourcePosition: right
       targetPosition: left
       type: custom
-      width: 242
+      width: 244
     - data:
         type: http-request
         title: SPC Analyzer Agent
-        desc: 조회된 데이터로 SPC 분석 및 OOC 탐지 수행
+        desc: 조회된 데이터로 SPC 분석 및 OOC(Out of Control) 탐지 수행
         method: POST
         url: http://agent-svc:8002/invoke
         authorization:
@@ -227,13 +240,14 @@ workflow:
         params: ''
         body:
           type: json
-          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}", "tools": ["mcp_run_spc", "mcp_detect_ooc"]}'
+          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
+            "tools": ["mcp_run_spc", "mcp_detect_ooc"]}'
         timeout:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
         selected: false
-      height: 158
+      height: 98
       id: node_2_spc_analyzer
       position:
         x: 560
@@ -245,22 +259,28 @@ workflow:
       sourcePosition: right
       targetPosition: left
       type: custom
-      width: 242
+      width: 244
     - data:
-        type: if-else
-        title: 'OOC 감지 여부 분기'
-        cases:
-        - case_id: 'true'
-          conditions:
-          - variable_selector:
-            - node_2_spc_analyzer
-            - status_code
-            comparison_operator: ==
-            value: '200'
-          logical_operator: and
+        type: http-request
+        title: Anomaly Detector Agent
+        desc: ML 기반 이상 공정 탐지 및 드리프트 분석
+        method: POST
+        url: http://agent-svc:8004/invoke
+        authorization:
+          type: no-auth
+        headers: 'Content-Type: application/json'
+        params: ''
+        body:
+          type: json
+          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
+            "tools": ["mcp_ml_predict", "mcp_detect_drift"]}'
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 10
         selected: false
-      height: 164
-      id: branch_ooc
+      height: 98
+      id: node_3_anomaly_detector
       position:
         x: 800
         y: 200
@@ -271,11 +291,11 @@ workflow:
       sourcePosition: right
       targetPosition: left
       type: custom
-      width: 242
+      width: 244
     - data:
         type: http-request
         title: Alert Agent
-        desc: 이상 공정 감지 시 Slack으로 알림 발송
+        desc: 이상 공정 감지 시 슬랙 채널로 알림 발송
         method: POST
         url: http://agent-svc:8006/invoke
         authorization:
@@ -284,25 +304,26 @@ workflow:
         params: ''
         body:
           type: json
-          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}", "tools": ["mcp_notify_slack"]}'
+          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
+            "tools": ["mcp_notify_slack"]}'
         timeout:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
         selected: false
-      height: 158
-      id: node_3_alert_agent
+      height: 98
+      id: node_4_alert_agent
       position:
         x: 1040
-        y: 80
+        y: 200
       positionAbsolute:
         x: 1040
-        y: 80
+        y: 200
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
-      width: 242
+      width: 244
     - data:
         type: http-request
         title: Report Agent
@@ -315,36 +336,61 @@ workflow:
         params: ''
         body:
           type: json
-          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}", "tools": ["mcp_gen_report", "mcp_export_pdf"]}'
+          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
+            "tools": ["mcp_gen_report", "mcp_export_pdf"]}'
         timeout:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
         selected: false
-      height: 158
-      id: node_4_report_agent
+      height: 98
+      id: node_5_report_agent
       position:
         x: 1040
-        y: 320
+        y: 200
       positionAbsolute:
         x: 1040
-        y: 320
+        y: 200
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
-      width: 242
+      width: 244
+    - data:
+        type: if-else
+        title: '조건: anomaly_detected == true'
+        logical_operator: and
+        conditions:
+        - variable_selector:
+          - node_3_anomaly_detector
+          - anomaly_detected
+          comparison_operator: ==
+          value: 'true'
+        selected: false
+      height: 98
+      id: branch_4
+      position:
+        x: 1280
+        y: 200
+      positionAbsolute:
+        x: 1280
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
     - data:
         type: end
         outputs:
         - variable: result
           value_selector:
-          - node_3_alert_agent
+          - node_4_alert_agent
           - body
           value_type: string
         title: End
         selected: false
-      height: 88
+      height: 98
       id: end
       position:
         x: 1280
@@ -356,7 +402,7 @@ workflow:
       sourcePosition: right
       targetPosition: left
       type: custom
-      width: 242
+      width: 244
     viewport:
       x: 0
       y: 0

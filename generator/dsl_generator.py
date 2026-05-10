@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import yaml
 from rich.console import Console
 
 from config import AGENT_REGISTRY
@@ -90,12 +89,11 @@ class WorkflowDSLGenerator:
 
         step_to_node_id: dict[int, str] = {}
 
+        # First pass: create all agent nodes
         for step in plan.steps:
             node_id = f"node_{step.step}_{step.agent_id}"
             agent_info = AGENT_REGISTRY.get(step.agent_id, {})
-
             node_data = self._build_node_data(step, agent_info)
-
             node = DifyNode(
                 id=node_id,
                 type="http-request",
@@ -109,9 +107,20 @@ class WorkflowDSLGenerator:
             nodes.append(node)
             step_to_node_id[step.step] = node_id
 
-            if step.condition:
-                branch_node = self._make_branch_node(step, node_id)
+        # Second pass: create branch nodes, deduped by (dep_node, condition)
+        seen_branches: dict[tuple, str] = {}  # (dep_node_id, condition) → branch_id
+        step_to_branch: dict[int, str] = {}
+        for step in plan.steps:
+            if not step.condition or not step.depends_on:
+                continue
+            dep_node_id = step_to_node_id[step.depends_on[0]]
+            branch_key = (dep_node_id, step.condition)
+            if branch_key not in seen_branches:
+                branch_id = f"branch_{step.step}"
+                branch_node = self._make_branch_node(step, dep_node_id)
                 nodes.append(branch_node)
+                seen_branches[branch_key] = branch_id
+            step_to_branch[step.step] = seen_branches[branch_key]
 
         # Find last layer to wire end node output
         if plan.steps:
@@ -138,7 +147,7 @@ class WorkflowDSLGenerator:
         )
         nodes.append(end_node)
 
-        edges = self._build_edges(plan.steps, step_to_node_id, nodes)
+        edges = self._build_edges(plan.steps, step_to_node_id, step_to_branch, nodes)
 
         console.log(f"[green]✓[/] DSL 생성: 노드 {len(nodes)}개, 엣지 {len(edges)}개")
         return DifyWorkflowDSL(nodes=nodes, edges=edges)
@@ -207,11 +216,13 @@ class WorkflowDSLGenerator:
         self,
         steps: list[PlanStep],
         step_to_node_id: dict[int, str],
+        step_to_branch: dict[int, str],
         nodes: list[DifyNode],
     ) -> list[dict]:
         node_type_map = {n.id: n.data.get("type", n.type) for n in nodes}
         edges = []
         edge_counter = 0
+        wired_dep_to_branch: set[tuple] = set()
 
         def make_edge(src: str, tgt: str, source_handle: str = "source") -> dict:
             nonlocal edge_counter
@@ -232,26 +243,43 @@ class WorkflowDSLGenerator:
                 "zIndex": 0,
             }
 
-        first_layer = [s for s in steps if not s.depends_on]
-        for s in first_layer:
-            edges.append(make_edge("start", step_to_node_id[s.step]))
+        # start → first-layer nodes (via branch if conditioned)
+        for s in [step for step in steps if not step.depends_on]:
+            node_id = step_to_node_id[s.step]
+            if s.step in step_to_branch:
+                branch_id = step_to_branch[s.step]
+                edges.append(make_edge("start", branch_id))
+                edges.append(make_edge(branch_id, node_id, source_handle="true"))
+            else:
+                edges.append(make_edge("start", node_id))
 
+        # dependency → node edges (via branch if current step is conditioned)
         for step in steps:
+            if not step.depends_on:
+                continue
             node_id = step_to_node_id[step.step]
             for dep_step_num in step.depends_on:
                 dep_node_id = step_to_node_id[dep_step_num]
-                dep_step = next((s for s in steps if s.step == dep_step_num), None)
-                if dep_step and dep_step.condition:
-                    branch_id = f"branch_{dep_step.step}"
-                    edges.append(make_edge(dep_node_id, branch_id))
+                if step.step in step_to_branch:
+                    branch_id = step_to_branch[step.step]
+                    wire_key = (dep_node_id, branch_id)
+                    if wire_key not in wired_dep_to_branch:
+                        edges.append(make_edge(dep_node_id, branch_id))
+                        wired_dep_to_branch.add(wire_key)
                     edges.append(make_edge(branch_id, node_id, source_handle="true"))
                 else:
                     edges.append(make_edge(dep_node_id, node_id))
 
+        # branch false → end
+        branch_ids = {n.id for n in nodes if n.type == "if-else"}
+        for branch_id in branch_ids:
+            edges.append(make_edge(branch_id, "end", source_handle="false"))
+
+        # last nodes → end (all leaf nodes regardless of condition)
         if steps:
-            max_layer = max(self._calc_layer(s, steps) for s in steps)
-            last_steps = [s for s in steps if self._calc_layer(s, steps) == max_layer]
-            for s in last_steps:
+            step_nums_as_dep = {dep for s in steps for dep in s.depends_on}
+            leaf_steps = [s for s in steps if s.step not in step_nums_as_dep]
+            for s in leaf_steps:
                 edges.append(make_edge(step_to_node_id[s.step], "end"))
 
         return edges

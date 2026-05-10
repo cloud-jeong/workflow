@@ -81,7 +81,7 @@
             "isInIteration": false,
             "isInLoop": false,
             "sourceType": "start",
-            "targetType": "tool"
+            "targetType": "http-request"
           },
           "id": "edge_1",
           "source": "start",
@@ -95,8 +95,8 @@
           "data": {
             "isInIteration": false,
             "isInLoop": false,
-            "sourceType": "tool",
-            "targetType": "tool"
+            "sourceType": "http-request",
+            "targetType": "http-request"
           },
           "id": "edge_2",
           "source": "node_1_data_collector",
@@ -110,13 +110,13 @@
           "data": {
             "isInIteration": false,
             "isInLoop": false,
-            "sourceType": "tool",
-            "targetType": "tool"
+            "sourceType": "http-request",
+            "targetType": "http-request"
           },
           "id": "edge_3",
           "source": "node_2_spc_analyzer",
           "sourceHandle": "source",
-          "target": "node_3_alert_agent",
+          "target": "node_3_anomaly_detector",
           "targetHandle": "target",
           "type": "custom",
           "zIndex": 0
@@ -125,13 +125,13 @@
           "data": {
             "isInIteration": false,
             "isInLoop": false,
-            "sourceType": "tool",
-            "targetType": "tool"
+            "sourceType": "http-request",
+            "targetType": "if-else"
           },
           "id": "edge_4",
-          "source": "node_2_spc_analyzer",
+          "source": "node_3_anomaly_detector",
           "sourceHandle": "source",
-          "target": "node_4_report_agent",
+          "target": "branch_4",
           "targetHandle": "target",
           "type": "custom",
           "zIndex": 0
@@ -140,11 +140,56 @@
           "data": {
             "isInIteration": false,
             "isInLoop": false,
-            "sourceType": "tool",
-            "targetType": "end"
+            "sourceType": "if-else",
+            "targetType": "http-request"
           },
           "id": "edge_5",
-          "source": "node_3_alert_agent",
+          "source": "branch_4",
+          "sourceHandle": "true",
+          "target": "node_4_alert_agent",
+          "targetHandle": "target",
+          "type": "custom",
+          "zIndex": 0
+        },
+        {
+          "data": {
+            "isInIteration": false,
+            "isInLoop": false,
+            "sourceType": "if-else",
+            "targetType": "http-request"
+          },
+          "id": "edge_6",
+          "source": "branch_4",
+          "sourceHandle": "true",
+          "target": "node_5_report_agent",
+          "targetHandle": "target",
+          "type": "custom",
+          "zIndex": 0
+        },
+        {
+          "data": {
+            "isInIteration": false,
+            "isInLoop": false,
+            "sourceType": "if-else",
+            "targetType": "end"
+          },
+          "id": "edge_7",
+          "source": "branch_4",
+          "sourceHandle": "false",
+          "target": "end",
+          "targetHandle": "target",
+          "type": "custom",
+          "zIndex": 0
+        },
+        {
+          "data": {
+            "isInIteration": false,
+            "isInLoop": false,
+            "sourceType": "http-request",
+            "targetType": "end"
+          },
+          "id": "edge_8",
+          "source": "node_4_alert_agent",
           "sourceHandle": "source",
           "target": "end",
           "targetHandle": "target",
@@ -155,11 +200,11 @@
           "data": {
             "isInIteration": false,
             "isInLoop": false,
-            "sourceType": "tool",
+            "sourceType": "http-request",
             "targetType": "end"
           },
-          "id": "edge_6",
-          "source": "node_4_report_agent",
+          "id": "edge_9",
+          "source": "node_5_report_agent",
           "sourceHandle": "source",
           "target": "end",
           "targetHandle": "target",
@@ -206,40 +251,24 @@
         },
         {
           "data": {
-            "type": "tool",
+            "type": "http-request",
             "title": "DataCollector Agent",
-            "desc": "LOT-2024-0812의 SPC 관련 데이터를 DB에서 조회",
-            "provider_type": "api",
-            "provider_id": "data_collector",
-            "tool_name": "mcp_query_db",
-            "tool_label": "DataCollector Agent",
-            "tool_configurations": {
-              "endpoint": "http://agent-svc:8001",
-              "timeout": 30
+            "desc": "LOT-2024-0812의 어제 SPC 데이터를 DB에서 조회",
+            "method": "POST",
+            "url": "http://agent-svc:8001/invoke",
+            "authorization": {
+              "type": "no-auth"
             },
-            "tool_parameters": {
-              "input": {
-                "type": "ref",
-                "value": "{{#start.user_query#}}"
-              },
-              "lot_id": {
-                "type": "ref",
-                "value": "{{#start.lot_id#}}"
-              },
-              "tools": [
-                "mcp_query_db"
-              ]
+            "headers": "Content-Type: application/json",
+            "params": "",
+            "body": {
+              "type": "json",
+              "data": "{\"input\": \"{{#start.user_query#}}\", \"lot_id\": \"{{#start.lot_id#}}\", \"tools\": [\"mcp_query_db\"]}"
             },
-            "outputs": {
-              "result": {
-                "type": "string"
-              },
-              "status": {
-                "type": "string"
-              },
-              "data": {
-                "type": "object"
-              }
+            "timeout": {
+              "max_connect_timeout": 10,
+              "max_read_timeout": 30,
+              "max_write_timeout": 10
             },
             "selected": false
           },
@@ -261,41 +290,24 @@
         },
         {
           "data": {
-            "type": "tool",
+            "type": "http-request",
             "title": "SPC Analyzer Agent",
-            "desc": "조회된 데이터로 SPC 분석 및 OOC 탐지 수행",
-            "provider_type": "api",
-            "provider_id": "spc_analyzer",
-            "tool_name": "mcp_run_spc",
-            "tool_label": "SPC Analyzer Agent",
-            "tool_configurations": {
-              "endpoint": "http://agent-svc:8002",
-              "timeout": 30
+            "desc": "조회된 데이터로 SPC 분석 및 OOC(Out of Control) 탐지 수행",
+            "method": "POST",
+            "url": "http://agent-svc:8002/invoke",
+            "authorization": {
+              "type": "no-auth"
             },
-            "tool_parameters": {
-              "input": {
-                "type": "ref",
-                "value": "{{#start.user_query#}}"
-              },
-              "lot_id": {
-                "type": "ref",
-                "value": "{{#start.lot_id#}}"
-              },
-              "tools": [
-                "mcp_run_spc",
-                "mcp_detect_ooc"
-              ]
+            "headers": "Content-Type: application/json",
+            "params": "",
+            "body": {
+              "type": "json",
+              "data": "{\"input\": \"{{#start.user_query#}}\", \"lot_id\": \"{{#start.lot_id#}}\", \"tools\": [\"mcp_run_spc\", \"mcp_detect_ooc\"]}"
             },
-            "outputs": {
-              "result": {
-                "type": "string"
-              },
-              "status": {
-                "type": "string"
-              },
-              "data": {
-                "type": "object"
-              }
+            "timeout": {
+              "max_connect_timeout": 10,
+              "max_read_timeout": 30,
+              "max_write_timeout": 10
             },
             "selected": false
           },
@@ -317,78 +329,68 @@
         },
         {
           "data": {
-            "type": "tool",
+            "type": "http-request",
+            "title": "Anomaly Detector Agent",
+            "desc": "ML 기반 이상 공정 탐지 및 드리프트 분석",
+            "method": "POST",
+            "url": "http://agent-svc:8004/invoke",
+            "authorization": {
+              "type": "no-auth"
+            },
+            "headers": "Content-Type: application/json",
+            "params": "",
+            "body": {
+              "type": "json",
+              "data": "{\"input\": \"{{#start.user_query#}}\", \"lot_id\": \"{{#start.lot_id#}}\", \"tools\": [\"mcp_ml_predict\", \"mcp_detect_drift\"]}"
+            },
+            "timeout": {
+              "max_connect_timeout": 10,
+              "max_read_timeout": 30,
+              "max_write_timeout": 10
+            },
+            "selected": false
+          },
+          "height": 98,
+          "id": "node_3_anomaly_detector",
+          "position": {
+            "x": 800,
+            "y": 200
+          },
+          "positionAbsolute": {
+            "x": 800,
+            "y": 200
+          },
+          "selected": false,
+          "sourcePosition": "right",
+          "targetPosition": "left",
+          "type": "custom",
+          "width": 244
+        },
+        {
+          "data": {
+            "type": "http-request",
             "title": "Alert Agent",
-            "desc": "이상 공정 감지 시 Slack으로 알림 발송",
-            "provider_type": "api",
-            "provider_id": "alert_agent",
-            "tool_name": "mcp_notify_slack",
-            "tool_label": "Alert Agent",
-            "tool_configurations": {
-              "endpoint": "http://agent-svc:8006",
-              "timeout": 30
+            "desc": "이상 공정 감지 시 슬랙 채널로 알림 발송",
+            "method": "POST",
+            "url": "http://agent-svc:8006/invoke",
+            "authorization": {
+              "type": "no-auth"
             },
-            "tool_parameters": {
-              "input": {
-                "type": "ref",
-                "value": "{{#start.user_query#}}"
-              },
-              "lot_id": {
-                "type": "ref",
-                "value": "{{#start.lot_id#}}"
-              },
-              "tools": [
-                "mcp_notify_slack"
-              ]
+            "headers": "Content-Type: application/json",
+            "params": "",
+            "body": {
+              "type": "json",
+              "data": "{\"input\": \"{{#start.user_query#}}\", \"lot_id\": \"{{#start.lot_id#}}\", \"tools\": [\"mcp_notify_slack\"]}"
             },
-            "outputs": {
-              "result": {
-                "type": "string"
-              },
-              "status": {
-                "type": "string"
-              },
-              "data": {
-                "type": "object"
-              }
+            "timeout": {
+              "max_connect_timeout": 10,
+              "max_read_timeout": 30,
+              "max_write_timeout": 10
             },
             "selected": false
           },
           "height": 98,
-          "id": "node_3_alert_agent",
-          "position": {
-            "x": 800,
-            "y": 200
-          },
-          "positionAbsolute": {
-            "x": 800,
-            "y": 200
-          },
-          "selected": false,
-          "sourcePosition": "right",
-          "targetPosition": "left",
-          "type": "custom",
-          "width": 244
-        },
-        {
-          "data": {
-            "type": "if-else",
-            "title": "조건: ooc_detected == true",
-            "logical_operator": "and",
-            "conditions": [
-              {
-                "variable_selector": [
-                  "node_3_alert_agent",
-                  "ooc_detected"
-                ],
-                "comparison_operator": "==",
-                "value": "true"
-              }
-            ],
-            "selected": false
-          },
-          "height": 98,
-          "id": "branch_3",
+          "id": "node_4_alert_agent",
           "position": {
             "x": 1040,
             "y": 200
@@ -405,52 +407,35 @@
         },
         {
           "data": {
-            "type": "tool",
+            "type": "http-request",
             "title": "Report Agent",
             "desc": "이상 공정 감지 시 분석 결과 PDF 리포트 생성",
-            "provider_type": "api",
-            "provider_id": "report_agent",
-            "tool_name": "mcp_gen_report",
-            "tool_label": "Report Agent",
-            "tool_configurations": {
-              "endpoint": "http://agent-svc:8005",
-              "timeout": 30
+            "method": "POST",
+            "url": "http://agent-svc:8005/invoke",
+            "authorization": {
+              "type": "no-auth"
             },
-            "tool_parameters": {
-              "input": {
-                "type": "ref",
-                "value": "{{#start.user_query#}}"
-              },
-              "lot_id": {
-                "type": "ref",
-                "value": "{{#start.lot_id#}}"
-              },
-              "tools": [
-                "mcp_gen_report",
-                "mcp_export_pdf"
-              ]
+            "headers": "Content-Type: application/json",
+            "params": "",
+            "body": {
+              "type": "json",
+              "data": "{\"input\": \"{{#start.user_query#}}\", \"lot_id\": \"{{#start.lot_id#}}\", \"tools\": [\"mcp_gen_report\", \"mcp_export_pdf\"]}"
             },
-            "outputs": {
-              "result": {
-                "type": "string"
-              },
-              "status": {
-                "type": "string"
-              },
-              "data": {
-                "type": "object"
-              }
+            "timeout": {
+              "max_connect_timeout": 10,
+              "max_read_timeout": 30,
+              "max_write_timeout": 10
             },
             "selected": false
           },
           "height": 98,
-          "id": "node_4_report_agent",
+          "id": "node_5_report_agent",
           "position": {
-            "x": 800,
+            "x": 1040,
             "y": 200
           },
           "positionAbsolute": {
-            "x": 800,
+            "x": 1040,
             "y": 200
           },
           "selected": false,
@@ -462,13 +447,13 @@
         {
           "data": {
             "type": "if-else",
-            "title": "조건: ooc_detected == true",
+            "title": "조건: anomaly_detected == true",
             "logical_operator": "and",
             "conditions": [
               {
                 "variable_selector": [
-                  "node_4_report_agent",
-                  "ooc_detected"
+                  "node_3_anomaly_detector",
+                  "anomaly_detected"
                 ],
                 "comparison_operator": "==",
                 "value": "true"
@@ -499,8 +484,8 @@
               {
                 "variable": "result",
                 "value_selector": [
-                  "node_3_alert_agent",
-                  "result"
+                  "node_4_alert_agent",
+                  "body"
                 ],
                 "value_type": "string"
               }
@@ -511,11 +496,11 @@
           "height": 98,
           "id": "end",
           "position": {
-            "x": 1040,
+            "x": 1280,
             "y": 200
           },
           "positionAbsolute": {
-            "x": 1040,
+            "x": 1280,
             "y": 200
           },
           "selected": false,
