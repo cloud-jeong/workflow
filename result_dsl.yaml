@@ -89,23 +89,23 @@ workflow:
         isInIteration: false
         isInLoop: false
         sourceType: http-request
-        targetType: if-else
+        targetType: http-request
       id: edge_3
       source: node_2_spc_analyzer
       sourceHandle: source
-      target: branch_3
+      target: node_3_anomaly_detector
       targetHandle: target
       type: custom
       zIndex: 0
     - data:
         isInIteration: false
         isInLoop: false
-        sourceType: if-else
-        targetType: http-request
+        sourceType: http-request
+        targetType: if-else
       id: edge_4
-      source: branch_3
-      sourceHandle: 'true'
-      target: node_3_alert_agent
+      source: node_3_anomaly_detector
+      sourceHandle: source
+      target: branch_4
       targetHandle: target
       type: custom
       zIndex: 0
@@ -115,9 +115,21 @@ workflow:
         sourceType: if-else
         targetType: http-request
       id: edge_5
-      source: branch_3
+      source: branch_4
       sourceHandle: 'true'
-      target: node_4_report_agent
+      target: node_4_alert_agent
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: edge_6
+      source: branch_4
+      sourceHandle: 'true'
+      target: node_5_report_agent
       targetHandle: target
       type: custom
       zIndex: 0
@@ -126,8 +138,8 @@ workflow:
         isInLoop: false
         sourceType: if-else
         targetType: end
-      id: edge_6
-      source: branch_3
+      id: edge_7
+      source: branch_4
       sourceHandle: 'false'
       target: end
       targetHandle: target
@@ -138,8 +150,8 @@ workflow:
         isInLoop: false
         sourceType: http-request
         targetType: end
-      id: edge_7
-      source: node_3_alert_agent
+      id: edge_8
+      source: node_4_alert_agent
       sourceHandle: source
       target: end
       targetHandle: target
@@ -150,23 +162,17 @@ workflow:
         isInLoop: false
         sourceType: http-request
         targetType: end
-      id: edge_8
-      source: node_4_report_agent
+      id: edge_9
+      source: node_5_report_agent
       sourceHandle: source
       target: end
       targetHandle: target
       type: custom
       zIndex: 0
     nodes:
-    - !!python/object:models.dsl.DifyNode
-      id: start
-      type: start
-      title: Start
-      agent_id: null
-      tools: []
-      layer: 0
-      parallel: false
-      data:
+    - data:
+        title: Start
+        selected: false
         type: start
         variables:
         - variable: user_query
@@ -177,19 +183,24 @@ workflow:
           label: LOT ID
           type: text-input
           required: false
-    - !!python/object:models.dsl.DifyNode
-      id: node_1_data_collector
-      type: http-request
-      title: DataCollector Agent
-      agent_id: data_collector
-      tools:
-      - mcp_query_db
-      layer: 1
-      parallel: false
-      data:
-        type: http-request
+      height: 98
+      id: start
+      position:
+        x: 80
+        y: 200
+      positionAbsolute:
+        x: 80
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
         title: DataCollector Agent
-        desc: LOT-2024-0812의 어제 SPC 관련 데이터를 DB에서 조회하여 수집
+        selected: false
+        type: http-request
+        desc: LOT-2024-0812의 어제 날짜 SPC 관련 데이터를 DB에서 조회하고 장비 로그를 수집합니다
         method: POST
         url: http://agent-svc:8001/invoke
         authorization:
@@ -199,25 +210,29 @@ workflow:
         body:
           type: json
           data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
-            "tools": ["mcp_query_db"]}'
+            "tools": ["mcp_query_db", "mcp_fetch_equipment_log"]}'
         timeout:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
-    - !!python/object:models.dsl.DifyNode
-      id: node_2_spc_analyzer
-      type: http-request
-      title: SPC Analyzer Agent
-      agent_id: spc_analyzer
-      tools:
-      - mcp_run_spc
-      - mcp_detect_ooc
-      layer: 2
-      parallel: false
-      data:
-        type: http-request
+      height: 98
+      id: node_1_data_collector
+      position:
+        x: 360
+        y: 200
+      positionAbsolute:
+        x: 360
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
         title: SPC Analyzer Agent
-        desc: 수집된 데이터로 SPC 분석 및 OOC(Out of Control) 탐지 수행
+        selected: false
+        type: http-request
+        desc: 수집된 데이터로 SPC 분석을 수행하고 OOC(Out of Control) 여부를 탐지합니다
         method: POST
         url: http://agent-svc:8002/invoke
         authorization:
@@ -227,24 +242,61 @@ workflow:
         body:
           type: json
           data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
-            "tools": ["mcp_run_spc", "mcp_detect_ooc"]}'
+            "tools": ["mcp_run_spc", "mcp_detect_ooc", "mcp_calculate_cpk"]}'
         timeout:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
-    - !!python/object:models.dsl.DifyNode
-      id: node_3_alert_agent
-      type: http-request
-      title: Alert Agent
-      agent_id: alert_agent
-      tools:
-      - mcp_notify_slack
-      layer: 3
-      parallel: true
-      data:
+      height: 98
+      id: node_2_spc_analyzer
+      position:
+        x: 640
+        y: 200
+      positionAbsolute:
+        x: 640
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        title: Anomaly Detector Agent
+        selected: false
         type: http-request
+        desc: SPC 분석 결과를 기반으로 이상 공정 여부를 ML 모델로 최종 판정합니다
+        method: POST
+        url: http://agent-svc:8004/invoke
+        authorization:
+          type: no-auth
+        headers: 'Content-Type: application/json'
+        params: ''
+        body:
+          type: json
+          data: '{"input": "{{#start.user_query#}}", "lot_id": "{{#start.lot_id#}}",
+            "tools": ["mcp_ml_predict", "mcp_detect_drift"]}'
+        timeout:
+          max_connect_timeout: 10
+          max_read_timeout: 30
+          max_write_timeout: 10
+      height: 98
+      id: node_3_anomaly_detector
+      position:
+        x: 920
+        y: 200
+      positionAbsolute:
+        x: 920
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
         title: Alert Agent
-        desc: 이상 공정 감지 시 Slack 채널에 알림 발송
+        selected: false
+        type: http-request
+        desc: 이상 공정이 감지된 경우 슬랙으로 즉시 알림을 발송합니다
         method: POST
         url: http://agent-svc:8006/invoke
         authorization:
@@ -259,20 +311,24 @@ workflow:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
-    - !!python/object:models.dsl.DifyNode
-      id: node_4_report_agent
-      type: http-request
-      title: Report Agent
-      agent_id: report_agent
-      tools:
-      - mcp_gen_report
-      - mcp_export_pdf
-      layer: 3
-      parallel: true
-      data:
-        type: http-request
+      height: 98
+      id: node_4_alert_agent
+      position:
+        x: 1200
+        y: 200
+      positionAbsolute:
+        x: 1200
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
         title: Report Agent
-        desc: 이상 공정 감지 시 분석 결과를 PDF 리포트로 생성
+        selected: false
+        type: http-request
+        desc: 이상 공정이 감지된 경우 분석 결과를 PDF 리포트로 생성합니다
         method: POST
         url: http://agent-svc:8005/invoke
         authorization:
@@ -287,40 +343,66 @@ workflow:
           max_connect_timeout: 10
           max_read_timeout: 30
           max_write_timeout: 10
-    - !!python/object:models.dsl.DifyNode
-      id: branch_3
-      type: if-else
-      title: '조건: ooc_detected == true'
-      agent_id: null
-      tools: []
-      layer: 4
-      parallel: false
-      data:
+      height: 98
+      id: node_5_report_agent
+      position:
+        x: 1200
+        y: 200
+      positionAbsolute:
+        x: 1200
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        title: 조건 분기 (Step 4)
+        selected: false
         type: if-else
-        title: 조건 분기 (Step 3)
         logical_operator: and
         conditions:
         - variable_selector:
-          - node_2_spc_analyzer
-          - ooc_detected
+          - node_3_anomaly_detector
+          - anomaly_detected
           comparison_operator: ==
           value: 'true'
-    - !!python/object:models.dsl.DifyNode
-      id: end
-      type: end
-      title: End
-      agent_id: null
-      tools: []
-      layer: 4
-      parallel: false
-      data:
+      height: 98
+      id: branch_4
+      position:
+        x: 1480
+        y: 200
+      positionAbsolute:
+        x: 1480
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        title: End
+        selected: false
         type: end
         outputs:
         - variable: result
           value_selector:
-          - node_3_alert_agent
+          - node_4_alert_agent
           - body
           value_type: string
+      height: 98
+      id: end
+      position:
+        x: 1480
+        y: 200
+      positionAbsolute:
+        x: 1480
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
     viewport:
       x: 0
       y: 0
